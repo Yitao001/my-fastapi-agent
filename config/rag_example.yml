@@ -1,0 +1,32 @@
+# ==========================================
+# RAG配置文件 - 多模型支持版
+# ==========================================
+
+# 模型提供商选择
+# 可选值: tongyi（通义千问）、openai（OpenAI GPT）、anthropic（Claude）
+model_provider: tongyi
+
+# ==========================================
+# 通义千问配置 (model_provider: tongyi)
+# ==========================================
+# 对话模型可选值: qwen-turbo, qwen-plus, qwen-max, qwen3-max
+chat_model_name: qwen3-max
+
+# 嵌入模型可选值: text-embedding-v3, text-embedding-v4
+embedding_model_name: text-embedding-v4
+
+# ==========================================
+# OpenAI GPT配置 (model_provider: openai)
+# ==========================================
+# 如果使用OpenAI，请取消下面的注释并配置
+# openai_api_key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# openai_base_url: https://api.openai.com/v1  # 或者使用代理地址
+# chat_model_name: gpt-4o  # 或 gpt-3.5-turbo, gpt-4-turbo
+# embedding_model_name: text-embedding-3-small
+
+# ==========================================
+# Anthropic Claude配置 (model_provider: anthropic)
+# ==========================================
+# 如果使用Claude，请取消下面的注释并配置
+# anthropic_api_key: sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# chat_model_name: claude-3-5-sonnet-20241022  # 或 claude-3-opus
