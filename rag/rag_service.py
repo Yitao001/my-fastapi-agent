@@ -4,7 +4,7 @@
 """
 
 
-from langchain_classic.chains.base import Chain
+
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 
