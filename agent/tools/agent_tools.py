@@ -1,46 +1,28 @@
 import re
+import os
 from typing import Optional
+from dotenv import load_dotenv
+import requests
 
 from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-import mysql.connector
-from mysql.connector import Error
 
-from utils.config_handler import db_conf
 from utils.path_tool import get_abs_path
 from utils.logger_handler import logger
-from utils.db_pool import get_db_connection_from_pool
 from utils.cache_manager import get_persona_cache
 from utils.retry_utils import with_retry, llm_retry_config
 from model.factory import chat_model
 
+load_dotenv()
 
-def _is_safe_identifier(identifier: str) -> bool:
-    """
-    验证SQL标识符是否安全，防止SQL注入
-    只允许字母、数字、下划线
-    """
-    return bool(re.match(r'^[A-Za-z0-9_]+$', identifier))
-
-
-def get_db_connection() -> mysql.connector.connection.MySQLConnection:
-    """
-    获取数据库连接（使用连接池）
-    
-    Returns:
-        mysql.connector.connection.MySQLConnection: 数据库连接对象
-    """
-    try:
-        return get_db_connection_from_pool()
-    except Error as e:
-        logger.error(f"[get_db_connection]MySQL连接失败：{str(e)}")
-        raise e
+PROXY_API_URL = os.getenv("PROXY_API_URL", "")
+PROXY_API_KEY = os.getenv("PROXY_API_KEY", "")
 
 
 def get_chat_history_from_db(participant_id: str) -> str:
     """
-    从数据库获取指定参与者的对话历史
+    通过数据库代理服务获取指定参与者的对话历史
     
     Args:
         participant_id: 参与者ID（学生ID）
@@ -49,54 +31,49 @@ def get_chat_history_from_db(participant_id: str) -> str:
         对话历史文本
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        if not PROXY_API_URL:
+            return "错误：未配置数据库代理服务地址 (PROXY_API_URL)"
         
-        table_config = db_conf.get("table_structure", {})
-        table_name = table_config.get("table_name", "talk_record")
-        fields = table_config.get("fields", {})
-        query_limit = table_config.get("query_limit", 100)
+        headers = {}
+        if PROXY_API_KEY:
+            headers["X-Proxy-API-Key"] = PROXY_API_KEY
         
-        student_id_field = fields.get("student_id", "student_id")
-        content_field = fields.get("content", "content")
-        created_time_field = fields.get("created_time", "created_time")
+        payload = {
+            "student_id": participant_id,
+            "limit": 100
+        }
         
-        if not all(_is_safe_identifier(ident) for ident in [table_name, student_id_field, content_field, created_time_field]):
-            logger.error("[get_chat_history_from_db]检测到不安全的SQL标识符")
-            return "数据库配置错误"
+        logger.info(f"[代理调用] 请求对话历史，学生ID: {participant_id}")
         
-        try:
-            query_limit = int(query_limit)
-            if query_limit < 1 or query_limit > 1000:
-                query_limit = 100
-        except (ValueError, TypeError):
-            query_limit = 100
+        response = requests.post(
+            f"{PROXY_API_URL.rstrip('/')}/chat-history",
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
         
-        query = f"""
-        SELECT {content_field}, {created_time_field} 
-        FROM {table_name} 
-        WHERE {student_id_field} = %s 
-        ORDER BY {created_time_field} DESC 
-        LIMIT {query_limit}
-        """
+        response.raise_for_status()
+        result = response.json()
         
-        cursor.execute(query, (participant_id,))
-        results = cursor.fetchall()
+        if result.get("status") != "success":
+            return f"代理服务错误: {result.get('message', '未知错误')}"
         
-        if not results:
-            cursor.close()
-            conn.close()
+        records = result.get("data", [])
+        
+        if not records:
             return "未找到历史会谈信息"
         
         chat_history = []
-        for row in results:
-            content, talk_time = row
+        for record in records:
+            content = record.get("content", "")
+            talk_time = record.get("created_time", "")
             chat_history.append(f"时间: {talk_time}\n内容: {content}")
         
-        cursor.close()
-        conn.close()
-        
         return "\n\n".join(chat_history)
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[get_chat_history_from_db]代理服务调用失败: {str(e)}")
+        return f"代理服务调用失败: {str(e)}"
     except Exception as e:
         logger.error(f"[get_chat_history_from_db]获取对话历史失败: {str(e)}")
         return f"获取对话历史失败: {str(e)}"
