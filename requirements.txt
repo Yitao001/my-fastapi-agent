@@ -1,24 +1,22 @@
 # 核心依赖
-fastapi==0.135.2
-uvicorn==0.40.0
-pydantic==2.12.5
-python-dotenv==1.0.0
-PyYAML==6.0.1
+fastapi
+uvicorn
+pydantic
+python-dotenv
+PyYAML
 
 # 数据库依赖
-mysql-connector-python==8.4.0
+mysql-connector-python
 
 # LangChain依赖
-langchain==0.3.7
-langchain-openai==0.2.0
-
-# 向量数据库依赖
-chromadb==1.1.1
+langchain
+langchain-core
+langchain-community
 
 # 安全依赖
-slowapi==0.1.9
-limits==3.13.0
+slowapi
+limits
 
 # 工具库
-requests==2.32.3
-beautifulsoup4==4.12.3
+requests
+beautifulsoup4

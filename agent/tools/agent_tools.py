@@ -1,17 +1,12 @@
-import os
 import re
-from datetime import datetime
-from typing import Optional, List, Tuple
+from typing import Optional
 
 from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.documents import Document
 import mysql.connector
 from mysql.connector import Error
 
-from rag.rag_service import RagSummarizeService
-from rag.vector_store import VectorStoreService
 from utils.config_handler import db_conf
 from utils.path_tool import get_abs_path
 from utils.logger_handler import logger
@@ -110,12 +105,12 @@ def get_chat_history_from_db(participant_id: str) -> str:
 @with_retry(config=llm_retry_config)
 def _generate_persona(chat_history: str, target_person: str = "对方", participant_id: Optional[str] = None) -> str:
     """
-    根据对话记录分析指定人物的人物画像
+    根据对话记录分析指定人物的人物画像（简化版：不使用向量库）
     
     Args:
         chat_history: 对话记录内容
         target_person: 要分析的目标人物
-        participant_id: 参与者ID，用于存储和检索向量库
+        participant_id: 参与者ID（用于缓存，不使用向量库）
     
     Returns:
         人物画像描述
@@ -124,41 +119,10 @@ def _generate_persona(chat_history: str, target_person: str = "对方", particip
     with open(persona_prompt_path, "r", encoding="utf-8") as f:
         persona_prompt = f.read()
     
-    rag_service = RagSummarizeService()
-    vector_store = VectorStoreService()
-    
-    retrieval_query = f"{target_person}的人物画像分析，包括性格特征、核心问题和当前状态"
-    context_docs = rag_service.retriever_docs(retrieval_query)
-    
-    context = ""
-    counter = 0
-    for doc in context_docs:
-        counter += 1
-        context += f"[参考资料{counter}]:{doc.page_content}\n"
-    
-    enhanced_prompt = persona_prompt + "\n\n# 参考资料\n" + context
-    
-    prompt_template = PromptTemplate.from_template(enhanced_prompt)
+    prompt_template = PromptTemplate.from_template(persona_prompt)
     chain = prompt_template | chat_model | StrOutputParser()
     
     persona_result = chain.invoke({"chat_history": chat_history, "target_person": target_person})
-    
-    if participant_id:
-        doc_content = f"参与者ID: {participant_id}\n人物画像: {persona_result}\n谈话记录: {chat_history}\n生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        document = Document(
-            page_content=doc_content,
-            metadata={
-                "participant_id": participant_id,
-                "type": "persona_analysis",
-                "created_at": datetime.now().isoformat()
-            }
-        )
-        
-        try:
-            vector_store.vector_store.add_documents([document])
-            logger.info(f"[向量库] 参与者 {participant_id} 的人物画像已成功存入向量库")
-        except Exception as e:
-            logger.error(f"[向量库] 存入人物画像失败: {str(e)}")
     
     return persona_result
 
