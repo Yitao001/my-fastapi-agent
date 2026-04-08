@@ -5,6 +5,7 @@
 """
 import os
 import re
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, status
@@ -149,7 +150,14 @@ async def get_chat_history(
         cursor.close()
         conn.close()
         
-        records = [ChatRecord(**row) for row in results]
+        processed_results = []
+        for row in results:
+            processed_row = dict(row)
+            if isinstance(processed_row.get("created_time"), datetime):
+                processed_row["created_time"] = processed_row["created_time"].strftime("%Y-%m-%d %H:%M:%S")
+            processed_results.append(processed_row)
+        
+        records = [ChatRecord(**row) for row in processed_results]
         
         return ChatHistoryResponse(
             status="success",
