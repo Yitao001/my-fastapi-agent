@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+import os
+from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
-from utils.config_handler import rag_conf
 from utils.logger_handler import logger
+
+load_dotenv()
 
 
 class BaseModelFactory(ABC):
@@ -18,8 +21,8 @@ class ChatModelFactory(BaseModelFactory):
         根据配置创建对话模型
         支持：tongyi（通义千问）、openai（GPT）、claude（Anthropic）等
         """
-        model_provider = rag_conf.get("model_provider", "tongyi")
-        model_name = rag_conf.get("chat_model_name", "qwen-max")
+        model_provider = os.getenv("MODEL_PROVIDER", "tongyi")
+        model_name = os.getenv("CHAT_MODEL_NAME", "qwen-max")
         
         logger.info(f"[模型工厂] 正在加载对话模型: {model_provider}/{model_name}")
         
@@ -29,8 +32,8 @@ class ChatModelFactory(BaseModelFactory):
         
         elif model_provider == "openai":
             from langchain_openai import ChatOpenAI
-            api_key = rag_conf.get("openai_api_key", "")
-            base_url = rag_conf.get("openai_base_url", "https://api.openai.com/v1")
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
             return ChatOpenAI(
                 model=model_name,
                 api_key=api_key,
@@ -39,7 +42,7 @@ class ChatModelFactory(BaseModelFactory):
         
         elif model_provider == "anthropic":
             from langchain_anthropic import ChatAnthropic
-            api_key = rag_conf.get("anthropic_api_key", "")
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
             return ChatAnthropic(
                 model=model_name,
                 api_key=api_key
@@ -54,8 +57,8 @@ class EmbeddingsFactory(BaseModelFactory):
         """
         根据配置创建向量嵌入模型
         """
-        model_provider = rag_conf.get("model_provider", "tongyi")
-        model_name = rag_conf.get("embedding_model_name", "text-embedding-v4")
+        model_provider = os.getenv("MODEL_PROVIDER", "tongyi")
+        model_name = os.getenv("EMBEDDING_MODEL_NAME", "text-embedding-v4")
         
         logger.info(f"[模型工厂] 正在加载嵌入模型: {model_provider}/{model_name}")
         
@@ -65,8 +68,8 @@ class EmbeddingsFactory(BaseModelFactory):
         
         elif model_provider == "openai":
             from langchain_openai import OpenAIEmbeddings
-            api_key = rag_conf.get("openai_api_key", "")
-            base_url = rag_conf.get("openai_base_url", "https://api.openai.com/v1")
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
             return OpenAIEmbeddings(
                 model=model_name,
                 api_key=api_key,
