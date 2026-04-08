@@ -1,149 +1,269 @@
-# 人物画像分析智能体 - 企业级安全架构
+# 学生画像分析智能体 - 完整使用指南
 
-## 🎯 核心架构
+## 🎯 什么是学生画像分析智能体
+
+学生画像分析智能体是一个基于AI的系统，通过分析学生的历史谈话记录，自动生成学生的人物画像，帮助教育工作者更好地了解学生的性格、学习情况和心理状态。
+
+## 🏗️ 系统架构
 
 ```
 ┌─────────────────┐         ┌─────────────────────┐         ┌─────────────────┐
 │  AI智能体服务    │  ──────→│  数据库代理服务     │  ──────→│  用户数据库      │
-│  (您的服务器)    │  API    │  (用户内网运行)     │         │  (用户本地)      │
+│  (云端服务器)    │  API    │  (用户本地运行)     │         │  (用户本地)      │
 └─────────────────┘         └─────────────────────┘         └─────────────────┘
 ```
 
-## 🛡️ 安全优势
+### 🛡️ 安全特点
 
-- ✅ **数据不出用户环境**：用户数据库永远在内网
-- ✅ **智能体不碰敏感数据**：只提供AI能力，不存储用户业务数据
-- ✅ **API Key认证**：双重安全认证
+- ✅ **数据不出用户环境**：您的学生数据永远在本地，不会上传到云端
+- ✅ **智能体不碰敏感数据**：AI只分析数据，不存储任何学生信息
+- ✅ **双重API Key认证**：保障数据访问安全
 - ✅ **企业级合规**：符合等保和数据安全法要求
 
 ---
 
-## 📦 部署方案
+## 📦 快速开始（用户指南）
 
-### 方案一：您部署智能体服务
+### 第1步：下载并解压
 
-1. 在您的服务器上部署AI智能体
-2. 提供数据库代理服务给用户
-3. 用户在本地运行代理服务
+1. 从我们提供的链接下载 `db-proxy.zip` 文件
+2. 解压到您电脑的任意位置，比如 `D:\db-proxy`
 
-### 方案二：用户部署代理服务
+### 第2步：配置数据库连接
 
-1. 把 `db-proxy/` 目录发给用户
-2. 用户在本地配置数据库连接
-3. 用户启动代理服务
-4. 您的智能体通过代理访问用户数据
+1. 进入 `db-proxy` 文件夹
+2. 找到 `.env.example` 文件，复制一份并重命名为 `.env`
+3. 用记事本打开 `.env` 文件，填写您的数据库信息：
 
----
-
-## 🚀 快速开始
-
-### 1. 部署AI智能体（您的服务器）
-
-```bash
-# 克隆代码
-git clone <your-repo-url>
-cd my-fastapi-agent
-
-# 安装依赖
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 配置 .env
-cp .env.example .env
-vim .env
-
-# 启动服务
-nohup python api.py > server.log 2>&1 &
-```
-
-### 2. 用户部署数据库代理
-
-把 `db-proxy/` 目录打包发给用户，用户执行：
-
-```bash
-# 进入代理目录
-cd db-proxy
-
-# 配置环境变量
-cp .env.example .env
-vim .env
-```
-
-编辑 `.env` 文件：
 ```env
-# 代理API Key（您提供给用户）
-PROXY_API_KEY=your_proxy_secure_key
+# ==========================================
+# 代理API Key（由智能体服务提供方提供）
+# ==========================================
+PROXY_API_KEY=test_proxy_key_123  # 请使用我们提供的真实Key
 
-# 用户数据库配置
-MYSQL_HOST=localhost
-MYSQL_USER=user_db_user
-MYSQL_PASSWORD=user_db_password
-MYSQL_DATABASE=user_db_name
+# ==========================================
+# 您的数据库配置
+# ==========================================
+MYSQL_HOST=localhost  # 数据库地址，通常是localhost
+MYSQL_PORT=3306       # 数据库端口，默认3306
+MYSQL_USER=root       # 数据库用户名
+MYSQL_PASSWORD=123456  # 数据库密码
+MYSQL_DATABASE=student_db  # 数据库名
 
+# ==========================================
 # 表结构配置
-TABLE_NAME=talk_record
-STUDENT_ID_FIELD=student_id
-CONTENT_FIELD=content
-CREATED_TIME_FIELD=created_time
+# ==========================================
+TABLE_NAME=talk_record  # 谈话记录表名
+STUDENT_ID_FIELD=student_id  # 学生ID字段名
+CONTENT_FIELD=content  # 谈话内容字段名
+CREATED_TIME_FIELD=created_time  # 创建时间字段名
+QUERY_LIMIT=100  # 单次查询最大条数
 ```
 
-启动代理服务：
-```bash
-pip install -r requirements.txt
-python main.py
+### 第3步：启动数据库代理服务
+
+#### Windows用户
+- 双击运行 `start.bat` 文件
+- 看到 "数据库代理服务启动中..." 的提示即成功
+
+#### Mac/Linux用户
+- 打开终端，进入 `db-proxy` 目录
+- 运行：`chmod +x start.sh && ./start.sh`
+
+### 第4步：获取您的代理服务地址
+
+启动成功后，您会看到：
+```
+API文档: http://localhost:8001/docs
+```
+
+这个地址就是您的代理服务地址，请把它发给智能体服务提供方。
+
+---
+
+## 🗄️ 数据库配置（重要！）
+
+### 方案A：使用现有数据库
+
+如果您已经有学生谈话记录数据库，请确保：
+
+1. **表结构要求**：
+   - 表名：`talk_record`（或在 `.env` 中配置）
+   - 必需字段：
+     - `student_id`：学生唯一标识
+     - `content`：谈话内容
+     - `created_time`：创建时间（DATETIME类型）
+
+2. **权限设置**：
+   - 建议创建只读用户，只赋予 `SELECT` 权限
+   - 例如：
+     ```sql
+     CREATE USER 'proxy_user'@'localhost' IDENTIFIED BY 'your_password';
+     GRANT SELECT ON student_db.talk_record TO 'proxy_user'@'localhost';
+     ```
+
+### 方案B：创建新数据库
+
+如果您没有数据库，我们提供了示例表结构：
+
+1. 登录MySQL：
+   ```bash
+   mysql -u root -p
+   ```
+
+2. 执行 `example_schema.sql` 中的SQL语句：
+   ```sql
+   -- 创建数据库
+   CREATE DATABASE IF NOT EXISTS student_db CHARACTER SET utf8mb4;
+   
+   -- 使用数据库
+   USE student_db;
+   
+   -- 创建表
+   CREATE TABLE IF NOT EXISTS talk_record (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       student_id VARCHAR(50) NOT NULL,
+       content TEXT NOT NULL,
+       created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+       INDEX idx_student_id (student_id)
+   );
+   
+   -- 插入测试数据
+   INSERT INTO talk_record (student_id, content, created_time) VALUES
+   ('S2023001', '今天学习了数学，感觉有点难，特别是几何部分。', '2026-04-01 09:00:00'),
+   ('S2023001', '老师布置了新的作业，我会认真完成的。', '2026-04-02 14:30:00'),
+   ('S2023001', '今天考试了，希望能有个好成绩。', '2026-04-03 16:00:00'),
+   ('S2023002', '我喜欢上体育课，今天跑了800米。', '2026-04-01 10:00:00'),
+   ('S2023003', '最近在读一本有趣的书，讲的是历史故事。', '2026-04-01 11:00:00'),
+   ('S2023003', '周末计划去图书馆看书，顺便复习功课。', '2026-04-02 16:00:00');
+   ```
+
+---
+
+## 🧪 测试您的代理服务
+
+1. 打开浏览器，访问：`http://localhost:8001/docs`
+2. 点击右上角的 **Authorize**，输入 `PROXY_API_KEY`
+3. 找到 `POST /chat-history` 接口
+4. 点击 **Try it out**
+5. 输入学生ID，例如：
+   ```json
+   {
+     "student_id": "S2023001",
+     "limit": 10
+   }
+   ```
+6. 点击 **Execute**，如果能看到返回的对话历史，说明代理服务正常！
+
+---
+
+## 🚀 使用智能体进行学生画像分析
+
+### 第1步：访问智能体服务
+
+在浏览器打开：`http://47.102.145.89:8000/docs`
+
+### 第2步：配置API Key
+
+1. 点击右上角的 **Authorize**
+2. 输入：`zytdsg123`
+3. 点击 **Authorize** 完成认证
+
+### 第3步：生成学生画像
+
+1. 找到 `POST /analyze` 接口
+2. 点击 **Try it out**
+3. 输入请求参数：
+   ```json
+   {
+     "participant_id": "S2023001",  // 学生ID
+     "participant_name": "张三"  // 学生姓名（可选）
+   }
+   ```
+4. 点击 **Execute**
+5. 等待几秒钟，AI会返回详细的学生画像分析！
+
+---
+
+## 📊 学生画像分析示例
+
+### 输入：
+```json
+{
+  "participant_id": "S2023001",
+  "participant_name": "张三"
+}
+```
+
+### 输出：
+```json
+{
+  "status": "success",
+  "persona": "张三是一个勤奋好学的学生，对学习有较高的要求和期望。从对话中可以看出，他在数学学习上遇到了一些困难，特别是几何部分，但他表现出积极的学习态度，会认真完成老师布置的作业。他对考试结果很在意，希望能取得好成绩，显示出较强的上进心和自我要求。整体来看，张三是一个目标明确、态度端正的学生，需要在数学学习上得到更多的支持和指导。",
+  "analysis_time": "2026-04-08 15:00:00"
+}
 ```
 
 ---
 
-## 🔧 配置说明
+## ⚙️ 常见问题与解决方案
 
-### 智能体配置 (`.env`)
+### 问题1：代理服务启动失败
+**症状**：运行 `start.bat` 后出现错误
+**解决方案**：
+- 检查Python是否安装：`python --version`
+- 检查数据库是否启动：`net start mysql`（Windows）
+- 检查数据库连接信息是否正确
 
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `PROXY_API_URL` | 用户代理服务地址 | `http://user-proxy-ip:8001` |
-| `PROXY_API_KEY` | 代理API Key（与用户一致） | `proxy_secure_key_123` |
-| `API_KEY` | 智能体API Key | `your_api_key` |
-| `DASHSCOPE_API_KEY` | 通义千问API Key | `sk-xxxxxx` |
+### 问题2：智能体返回 "代理服务调用失败"
+**症状**：智能体调用时出现代理服务错误
+**解决方案**：
+- 确认代理服务是否正在运行
+- 确认 `PROXY_API_URL` 是否正确
+- 确认 `PROXY_API_KEY` 是否一致
 
-### 代理配置 (`db-proxy/.env`)
+### 问题3：数据库连接失败
+**症状**：代理服务日志显示 "数据库错误"
+**解决方案**：
+- 检查数据库用户名密码是否正确
+- 检查数据库服务是否启动
+- 检查防火墙是否阻止连接
 
-| 参数 | 说明 |
-|------|------|
-| `PROXY_API_KEY` | 代理API Key（与智能体一致） |
-| `MYSQL_HOST` | 用户数据库地址 |
-| `MYSQL_USER` | 用户数据库用户名 |
-| `MYSQL_PASSWORD` | 用户数据库密码 |
-| `MYSQL_DATABASE` | 用户数据库名 |
-| `TABLE_NAME` | 谈话记录表名 |
-| `STUDENT_ID_FIELD` | 学生ID字段名 |
-| `CONTENT_FIELD` | 内容字段名 |
-| `CREATED_TIME_FIELD` | 创建时间字段名 |
-
----
-
-## 📊 API文档
-
-### 智能体API
-
-访问：`http://your-ecs-ip:8000/docs`
-
-### 代理API
-
-访问：`http://user-proxy-ip:8001/docs`
+### 问题4：返回 "未找到历史会谈信息"
+**症状**：智能体返回没有找到对话历史
+**解决方案**：
+- 检查学生ID是否存在于数据库中
+- 检查表名和字段名配置是否正确
+- 检查数据库中是否有该学生的记录
 
 ---
 
-## 🔐 安全建议
+## 📈 性能优化建议
 
-1. **使用HTTPS**：生产环境启用HTTPS
-2. **API Key轮换**：定期更换API Key
-3. **网络限制**：在用户侧限制代理服务的访问IP
-4. **只读用户**：用户数据库使用只读账号
+1. **数据库索引**：为 `student_id` 和 `created_time` 字段添加索引
+2. **查询限制**：建议单次查询限制在100条以内
+3. **网络优化**：如果网络较慢，考虑使用内网穿透工具
+
+---
+
+## 🔒 安全最佳实践
+
+1. **使用只读用户**：数据库用户只赋予SELECT权限
+2. **定期更换API Key**：每3-6个月更换一次 `PROXY_API_KEY`
+3. **网络隔离**：在防火墙中限制代理服务的访问IP
+4. **日志管理**：定期清理代理服务日志，避免敏感信息泄露
 
 ---
 
 ## 📞 技术支持
 
-如有问题，请联系技术支持。
+如果您遇到任何问题，请联系我们：
+- 邮箱：support@example.com
+- 电话：400-123-4567
+- 工作时间：周一至周五 9:00-18:00
+
+---
+
+## 🎉 祝您使用愉快！
+
+学生画像分析智能体将帮助您更好地了解学生，为教育教学提供有力支持！
