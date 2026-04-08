@@ -79,10 +79,11 @@ vim .env
 ```env
 # ==========================================
 # 模型配置
+# 支持的模型提供商: tongyi, openai, siliconflow, anthropic
 # ==========================================
-MODEL_PROVIDER=tongyi
-CHAT_MODEL_NAME=qwen-max
-EMBEDDING_MODEL_NAME=text-embedding-v4
+MODEL_PROVIDER=siliconflow
+CHAT_MODEL_NAME=deepseek-ai/DeepSeek-V3
+EMBEDDING_MODEL_NAME=BAAI/bge-m3
 
 # ==========================================
 # 数据库代理服务配置
@@ -102,10 +103,31 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 RATE_LIMIT_PER_MINUTE=60
 
 # ==========================================
-# 通义千问API Key（必需！）
+# 硅基流动 API Key (推荐)
+# ==========================================
+SILICONFLOW_API_KEY=sk-your-siliconflow-api-key
+SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
+
+# ==========================================
+# 通义千问 API Key (可选)
 # ==========================================
 DASHSCOPE_API_KEY=sk-your-dashscope-api-key
+
+# ==========================================
+# OpenAI API Key (可选)
+# ==========================================
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# ==========================================
+# Anthropic API Key (可选)
+# ==========================================
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 ```
+
+**硅基流动模型推荐**：
+- 对话模型：`deepseek-ai/DeepSeek-V3` 或 `Qwen/Qwen2.5-72B-Instruct`
+- 嵌入模型：`BAAI/bge-m3` 或 `BAAI/bge-large-zh-v1.5`
 
 ### 第5步：启动服务
 
@@ -379,7 +401,20 @@ API文档: http://localhost:8001/docs
 - 检查表名和字段名配置是否正确
 - 检查数据库中是否有该学生的记录
 
-### 问题5：如何更换大模型？
+### 问题5：如何使用硅基流动？
+**解决方案**：
+1. 注册硅基流动账号：https://siliconflow.cn
+2. 获取 API Key
+3. 在 `.env` 文件中配置：
+   ```env
+   MODEL_PROVIDER=siliconflow
+   SILICONFLOW_API_KEY=sk-your-siliconflow-api-key
+   CHAT_MODEL_NAME=deepseek-ai/DeepSeek-V3
+   EMBEDDING_MODEL_NAME=BAAI/bge-m3
+   ```
+4. 重启服务
+
+### 问题6：如何更换大模型？
 **解决方案**：
 - 修改 `.env` 文件中的 `MODEL_PROVIDER`、`CHAT_MODEL_NAME`
 - 配置对应的 API Key

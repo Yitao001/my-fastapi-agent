@@ -19,7 +19,7 @@ class ChatModelFactory(BaseModelFactory):
     def generator(self) -> Optional[BaseChatModel]:
         """
         根据配置创建对话模型
-        支持：tongyi（通义千问）、openai（GPT）、claude（Anthropic）等
+        支持：tongyi（通义千问）、openai（GPT）、claude（Anthropic）、siliconflow（硅基流动）等
         """
         model_provider = os.getenv("MODEL_PROVIDER", "tongyi")
         model_name = os.getenv("CHAT_MODEL_NAME", "qwen-max")
@@ -34,6 +34,16 @@ class ChatModelFactory(BaseModelFactory):
             from langchain_openai import ChatOpenAI
             api_key = os.getenv("OPENAI_API_KEY", "")
             base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            return ChatOpenAI(
+                model=model_name,
+                api_key=api_key,
+                base_url=base_url
+            )
+        
+        elif model_provider == "siliconflow":
+            from langchain_openai import ChatOpenAI
+            api_key = os.getenv("SILICONFLOW_API_KEY", "")
+            base_url = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1")
             return ChatOpenAI(
                 model=model_name,
                 api_key=api_key,
@@ -70,6 +80,16 @@ class EmbeddingsFactory(BaseModelFactory):
             from langchain_openai import OpenAIEmbeddings
             api_key = os.getenv("OPENAI_API_KEY", "")
             base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            return OpenAIEmbeddings(
+                model=model_name,
+                api_key=api_key,
+                base_url=base_url
+            )
+        
+        elif model_provider == "siliconflow":
+            from langchain_openai import OpenAIEmbeddings
+            api_key = os.getenv("SILICONFLOW_API_KEY", "")
+            base_url = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1")
             return OpenAIEmbeddings(
                 model=model_name,
                 api_key=api_key,
