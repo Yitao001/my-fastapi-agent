@@ -2,15 +2,26 @@
 """
 数据库代理客户端（用户端）
 连接云服务器中继服务，执行本地数据库查询
+支持灵活的表结构配置
 """
 import asyncio
 import json
+import re
 import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 import os
 import websockets
 from datetime import datetime
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """自定义 JSON 编码器，处理 datetime 类型"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.strftime("%Y-%m-%d %H:%M:%S")
+        return super().default(obj)
+
 
 load_dotenv()
 
@@ -22,6 +33,19 @@ MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
 MYSQL_USER = os.getenv("MYSQL_USER", "root")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
 MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "student_talk_db")
+
+TABLE_CONFIG = {
+    "table_name": os.getenv("TABLE_NAME", "chat_records"),
+    "student_id_field": os.getenv("STUDENT_ID_FIELD", "student_id"),
+    "content_field": os.getenv("CONTENT_FIELD", "content"),
+    "created_time_field": os.getenv("CREATED_TIME_FIELD", "created_time"),
+    "query_limit": int(os.getenv("QUERY_LIMIT", "100"))
+}
+
+
+def _is_safe_identifier(identifier: str) -> bool:
+    """验证SQL标识符安全"""
+    return bool(re.match(r'^[A-Za-z0-9_]+$', identifier))
 
 
 def get_db_connection():
@@ -52,7 +76,16 @@ def execute_query(query, params=None):
         results = cursor.fetchall()
         cursor.close()
         connection.close()
-        return {"status": "success", "data": results}
+        
+        processed_results = []
+        for row in results:
+            processed_row = dict(row)
+            for key, value in processed_row.items():
+                if isinstance(value, datetime):
+                    processed_row[key] = value.strftime("%Y-%m-%d %H:%M:%S")
+            processed_results.append(processed_row)
+        
+        return {"status": "success", "data": processed_results}
     except Error as e:
         return {"status": "error", "error": str(e)}
 
@@ -69,14 +102,24 @@ async def handle_request(request):
             student_id = params.get("student_id", "")
             limit = params.get("limit", 100)
             
-            query = """
-                SELECT content, created_time 
-                FROM chat_records 
-                WHERE student_id = %s 
-                ORDER BY created_time ASC 
+            table_name = TABLE_CONFIG["table_name"]
+            student_id_field = TABLE_CONFIG["student_id_field"]
+            content_field = TABLE_CONFIG["content_field"]
+            created_time_field = TABLE_CONFIG["created_time_field"]
+            query_limit = min(limit, TABLE_CONFIG["query_limit"])
+            
+            if not all(_is_safe_identifier(ident) for ident in 
+                      [table_name, student_id_field, content_field, created_time_field]):
+                return {"status": "error", "error": "表结构配置包含不安全的标识符"}
+            
+            query = f"""
+                SELECT {content_field} as content, {created_time_field} as created_time 
+                FROM {table_name} 
+                WHERE {student_id_field} = %s 
+                ORDER BY {created_time_field} ASC 
                 LIMIT %s
             """
-            result = execute_query(query, (student_id, limit))
+            result = execute_query(query, (student_id, query_limit))
             return result
             
         elif action == "health_check":
@@ -102,6 +145,11 @@ async def main():
     print(f"客户端ID: {CLIENT_ID}")
     print(f"中继服务: {RELAY_URL}")
     print(f"数据库: {MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}")
+    print(f"表结构: {TABLE_CONFIG['table_name']}")
+    print(f"  - 学生ID字段: {TABLE_CONFIG['student_id_field']}")
+    print(f"  - 内容字段: {TABLE_CONFIG['content_field']}")
+    print(f"  - 时间字段: {TABLE_CONFIG['created_time_field']}")
+    print(f"  - 查询限制: {TABLE_CONFIG['query_limit']}条")
     print("=" * 60)
     
     while True:
@@ -121,7 +169,7 @@ async def main():
                         response = await handle_request(request)
                         response["request_id"] = request_id
                         
-                        await websocket.send(json.dumps(response))
+                        await websocket.send(json.dumps(response, cls=DateTimeEncoder))
                         
                     except websockets.exceptions.ConnectionClosed:
                         print("与中继服务的连接已断开")
@@ -134,7 +182,7 @@ async def main():
                             "error": str(e)
                         }
                         try:
-                            await websocket.send(json.dumps(error_response))
+                            await websocket.send(json.dumps(error_response, cls=DateTimeEncoder))
                         except:
                             pass
                         

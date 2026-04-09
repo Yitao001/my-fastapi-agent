@@ -63,19 +63,68 @@ MYSQL_PORT=3306
 MYSQL_USER=root
 MYSQL_PASSWORD=your_password
 MYSQL_DATABASE=student_talk_db
+
+# ==========================================
+# 表结构配置
+# ==========================================
+TABLE_NAME=chat_records
+STUDENT_ID_FIELD=student_id
+CONTENT_FIELD=content
+CREATED_TIME_FIELD=created_time
+QUERY_LIMIT=100
 ```
 
 ### 配置项详解
+
+#### 中继服务配置
 
 | 配置项 | 说明 | 示例 |
 |--------|------|------|
 | RELAY_URL | 云服务器中继服务的 WebSocket 地址 | ws://your-server:8002 |
 | CLIENT_ID | 您的客户端唯一标识（可以自己命名） | school_a_client |
+
+#### 数据库配置
+
+| 配置项 | 说明 | 示例 |
+|--------|------|------|
 | MYSQL_HOST | 数据库地址 | 127.0.0.1 |
 | MYSQL_PORT | 数据库端口 | 3306 |
 | MYSQL_USER | 数据库用户名 | root |
 | MYSQL_PASSWORD | 数据库密码 | your_password |
 | MYSQL_DATABASE | 数据库名称 | student_talk_db |
+
+#### 表结构配置
+
+| 配置项 | 说明 | 示例 |
+|--------|------|------|
+| TABLE_NAME | 谈话记录表名 | chat_records |
+| STUDENT_ID_FIELD | 学生ID字段名 | student_id |
+| CONTENT_FIELD | 谈话内容字段名 | content |
+| CREATED_TIME_FIELD | 创建时间字段名 | created_time |
+| QUERY_LIMIT | 单次查询最大记录数 | 100 |
+
+### 灵活的表结构适配
+
+本客户端支持适配不同的表结构，无需修改代码。如果您的表结构与默认不同，只需修改表结构配置即可：
+
+**示例1：使用不同的表名和字段名**
+```env
+TABLE_NAME=talk_history
+STUDENT_ID_FIELD=user_id
+CONTENT_FIELD=message
+CREATED_TIME_FIELD=time
+QUERY_LIMIT=50
+```
+
+**示例2：使用 talk_record 表（旧版结构）**
+```env
+TABLE_NAME=talk_record
+STUDENT_ID_FIELD=student_id
+CONTENT_FIELD=content
+CREATED_TIME_FIELD=created_time
+```
+
+**安全说明**：表名和字段名只允许包含字母、数字和下划线，确保 SQL 注入安全。
 
 ---
 
@@ -91,6 +140,11 @@ MYSQL_DATABASE=student_talk_db
 客户端ID: my_client_001
 中继服务: ws://47.102.145.89:8002
 数据库: 127.0.0.1:3306/student_talk_db
+表结构: chat_records
+  - 学生ID字段: student_id
+  - 内容字段: content
+  - 时间字段: created_time
+  - 查询限制: 100条
 ============================================================
 正在连接中继服务: ws://47.102.145.89:8002/ws/client/my_client_001
 已连接到中继服务: my_client_001
@@ -191,10 +245,34 @@ curl -X POST "http://your-server:8000/analyze/simple" \
 - 您的数据永远在本地，不会上传到云端
 - 连接由您主动发起，服务提供方无法主动访问您的内网
 - 只有授权的请求才会查询您的数据库
+- 表名和字段名有安全验证，防止 SQL 注入
+
+### Q7: 我的表结构和默认不同怎么办？
+**A:** 没关系！通过修改 `.env` 文件中的表结构配置即可适配：
+- `TABLE_NAME`: 修改为您的表名
+- `STUDENT_ID_FIELD`: 修改为您的学生ID字段名
+- `CONTENT_FIELD`: 修改为您的内容字段名
+- `CREATED_TIME_FIELD`: 修改为您的时间字段名
+
+### Q8: 表名和字段名有什么限制？
+**A:** 为了安全起见，表名和字段名只允许包含：
+- 字母（a-z, A-Z）
+- 数字（0-9）
+- 下划线（_）
+
+不允许包含特殊字符或 SQL 关键字。
+
+### Q9: 如何验证表结构配置是否正确？
+**A:** 
+1. 启动客户端后，查看启动信息中的表结构配置
+2. 确保显示的表名和字段名与您的数据库一致
+3. 通过智能体 API 测试查询功能
 
 ---
 
 ## 6. 数据库表结构要求
+
+### 6.1 默认表结构
 
 如果您还没有学生谈话记录表，请按以下结构创建：
 
@@ -208,10 +286,50 @@ CREATE TABLE chat_records (
 );
 ```
 
-### 字段说明
-- `student_id`: 学生唯一标识
-- `content`: 谈话内容
-- `created_time`: 创建时间
+### 6.2 字段说明（默认结构）
+
+| 字段名 | 类型 | 说明 | 是否必填 |
+|--------|------|------|----------|
+| id | INT | 自增主键 | 是 |
+| student_id | VARCHAR(50) | 学生唯一标识 | 是 |
+| content | TEXT | 谈话内容 | 是 |
+| created_time | DATETIME | 创建时间 | 是 |
+
+### 6.3 自定义表结构
+
+如果您已有其他结构的表，可以通过配置灵活适配。以下是几种常见场景：
+
+**场景1：表名不同**
+```env
+TABLE_NAME=talk_history
+```
+
+**场景2：字段名不同**
+```env
+STUDENT_ID_FIELD=user_id
+CONTENT_FIELD=message
+CREATED_TIME_FIELD=record_time
+```
+
+**场景3：完整自定义示例**
+```env
+TABLE_NAME=conversation_logs
+STUDENT_ID_FIELD=participant_id
+CONTENT_FIELD=dialogue
+CREATED_TIME_FIELD=log_time
+QUERY_LIMIT=200
+```
+
+### 6.4 插入测试数据
+
+配置完成后，可以插入一些测试数据验证：
+
+```sql
+INSERT INTO chat_records (student_id, content, created_time) VALUES
+('S2023003', '学生最近学习状态很好，数学成绩进步明显', '2026-04-01 09:00:00'),
+('S2023003', '需要关注英语阅读能力的提升', '2026-04-02 14:30:00'),
+('S2023005', '该生性格开朗，善于与人交流', '2026-04-03 10:00:00');
+```
 
 ---
 
