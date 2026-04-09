@@ -159,3 +159,94 @@ def generate_persona_from_db_tool(participant_id: str, participant_name: Optiona
     根据数据库中的历史会谈信息生成人物画像（Agent工具）
     """
     return generate_persona_from_db(participant_id, participant_name)
+
+
+@with_retry(config=llm_retry_config)
+def _generate_persona_simple(chat_history: str, target_person: str = "对方") -> str:
+    """
+    根据对话记录生成简化版人物画像
+    
+    Args:
+        chat_history: 对话记录内容
+        target_person: 要分析的目标人物
+    
+    Returns:
+        简化版人物画像描述
+    """
+    persona_prompt_path = get_abs_path("prompts/persona_simple_prompt.txt")
+    with open(persona_prompt_path, "r", encoding="utf-8") as f:
+        persona_prompt = f.read()
+    
+    prompt_template = PromptTemplate.from_template(persona_prompt)
+    chain = prompt_template | chat_model | StrOutputParser()
+    
+    persona_result = chain.invoke({"chat_history": chat_history, "target_person": target_person})
+    
+    return persona_result
+
+
+def generate_persona_simple_from_db(participant_id: str, participant_name: Optional[str] = None) -> str:
+    """
+    根据数据库中的历史会谈信息生成简化版人物画像
+    
+    Args:
+        participant_id: 参与者ID
+        participant_name: 参与者姓名（可选）
+    
+    Returns:
+        简化版人物画像描述
+    """
+    chat_history = get_chat_history_from_db(participant_id)
+    
+    if "未找到" in chat_history or "失败" in chat_history:
+        return chat_history
+    
+    target_person = participant_name if participant_name else f"ID为{participant_id}的用户"
+    result = _generate_persona_simple(chat_history, target_person)
+    
+    return result
+
+
+async def generate_persona_stream(chat_history: str, target_person: str = "对方"):
+    """
+    根据对话记录流式生成简化版人物画像
+    
+    Args:
+        chat_history: 对话记录内容
+        target_person: 要分析的目标人物
+    
+    Yields:
+        人物画像片段
+    """
+    persona_prompt_path = get_abs_path("prompts/persona_simple_prompt.txt")
+    with open(persona_prompt_path, "r", encoding="utf-8") as f:
+        persona_prompt = f.read()
+    
+    prompt_template = PromptTemplate.from_template(persona_prompt)
+    chain = prompt_template | chat_model | StrOutputParser()
+    
+    async for chunk in chain.astream({"chat_history": chat_history, "target_person": target_person}):
+        yield chunk
+
+
+async def generate_persona_simple_from_db_stream(participant_id: str, participant_name: Optional[str] = None):
+    """
+    根据数据库中的历史会谈信息流式生成简化版人物画像
+    
+    Args:
+        participant_id: 参与者ID
+        participant_name: 参与者姓名（可选）
+    
+    Yields:
+        人物画像片段
+    """
+    chat_history = get_chat_history_from_db(participant_id)
+    
+    if "未找到" in chat_history or "失败" in chat_history:
+        yield chat_history
+        return
+    
+    target_person = participant_name if participant_name else f"ID为{participant_id}的用户"
+    
+    async for chunk in generate_persona_stream(chat_history, target_person):
+        yield chunk

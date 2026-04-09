@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from agent.tools.agent_tools import generate_persona_from_db
+from agent.tools.agent_tools import generate_persona_from_db, generate_persona_simple_from_db, generate_persona_simple_from_db_stream
+from fastapi.responses import StreamingResponse
 from utils.config_handler import security_conf
 from utils.logger_handler import logger
 from utils.cache_manager import get_persona_cache
@@ -247,29 +248,27 @@ async def clear_cache(request: Request, api_key: str = Depends(get_api_key)):
     cache.clear()
     return {"status": "ok", "message": "缓存已清空"}
 
-# 人物画像分析端点
+# 人物画像分析端点（完整版）
 @app.post(
     "/analyze", 
     response_model=PersonaResponse,
-    summary="分析人物画像",
-    description="根据参与者ID从数据库中获取对话记录并生成人物画像"
+    summary="分析人物画像（完整版）",
+    description="根据参与者ID从数据库中获取对话记录并生成详细人物画像"
 )
 @limiter.limit(f"{security_conf.get('rate_limit_per_minute', 60)}/minute")
 async def analyze_persona(request: Request, persona_request: PersonaRequest, api_key: str = Depends(get_api_key)):
     """
-    根据用户ID分析人物画像
+    根据用户ID分析人物画像（完整版）
     
     - **participant_id**: 参与者ID（必填）
     """
     try:
         logger.info(f"[API] 收到人物画像分析请求，参与者ID: {persona_request.participant_id}")
         
-        # 调用人物画像分析函数
         result = generate_persona_from_db(participant_id=persona_request.participant_id)
         
         logger.info(f"[API] 人物画像分析完成，参与者ID: {persona_request.participant_id}")
         
-        # 返回成功响应
         return PersonaResponse(
             status="success",
             data=result,
@@ -277,7 +276,75 @@ async def analyze_persona(request: Request, persona_request: PersonaRequest, api
         )
     except Exception as e:
         logger.error(f"[API] 人物画像分析失败: {str(e)}")
-        # 返回错误响应
+        raise HTTPException(
+            status_code=500,
+            detail=f"分析失败: {str(e)}"
+        )
+
+
+# 人物画像分析端点（简化版）
+@app.post(
+    "/analyze/simple",
+    summary="分析人物画像（简化版）",
+    description="根据参与者ID生成简化版人物画像，只保留重要信息"
+)
+@limiter.limit(f"{security_conf.get('rate_limit_per_minute', 60)}/minute")
+async def analyze_persona_simple(request: Request, persona_request: PersonaRequest, api_key: str = Depends(get_api_key)):
+    """
+    根据用户ID分析人物画像（简化版）
+    
+    - **participant_id**: 参与者ID（必填）
+    """
+    try:
+        logger.info(f"[API] 收到简化版人物画像分析请求，参与者ID: {persona_request.participant_id}")
+        
+        result = generate_persona_simple_from_db(participant_id=persona_request.participant_id)
+        
+        logger.info(f"[API] 简化版人物画像分析完成，参与者ID: {persona_request.participant_id}")
+        
+        return {
+            "status": "success",
+            "data": result,
+            "message": "简化版人物画像分析成功"
+        }
+    except Exception as e:
+        logger.error(f"[API] 简化版人物画像分析失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"分析失败: {str(e)}"
+        )
+
+
+# 人物画像分析端点（流式输出）
+@app.post(
+    "/analyze/stream",
+    summary="分析人物画像（流式输出）",
+    description="根据参与者ID流式生成简化版人物画像"
+)
+@limiter.limit(f"{security_conf.get('rate_limit_per_minute', 60)}/minute")
+async def analyze_persona_stream(request: Request, persona_request: PersonaRequest, api_key: str = Depends(get_api_key)):
+    """
+    根据用户ID分析人物画像（流式输出）
+    
+    - **participant_id**: 参与者ID（必填）
+    """
+    try:
+        logger.info(f"[API] 收到流式人物画像分析请求，参与者ID: {persona_request.participant_id}")
+        
+        async def generate():
+            async for chunk in generate_persona_simple_from_db_stream(
+                participant_id=persona_request.participant_id
+            ):
+                yield chunk
+        
+        logger.info(f"[API] 流式人物画像分析完成，参与者ID: {persona_request.participant_id}")
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/plain; charset=utf-8"
+        )
+    except Exception as e:
+        logger.error(f"[API] 流式人物画像分析失败: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"分析失败: {str(e)}"
