@@ -117,14 +117,14 @@ def get_chat_history_from_db(participant_id: str) -> str:
                 headers=headers,
                 timeout=30
             )
-        
-        response.raise_for_status()
-        result = response.json()
-        
-        if result.get("status") != "success":
-            return f"代理服务错误: {result.get('message', '未知错误')}"
-        
-        records = result.get("data", [])
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("status") != "success":
+                return f"代理服务错误: {result.get('message', '未知错误')}"
+            
+            records = result.get("data", [])
         
         if not records:
             return "未找到历史会谈信息"
