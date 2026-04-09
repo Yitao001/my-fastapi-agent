@@ -1,6 +1,7 @@
 import re
 import os
 from typing import Optional
+from datetime import datetime
 from dotenv import load_dotenv
 import requests
 
@@ -63,11 +64,61 @@ def get_chat_history_from_db(participant_id: str) -> str:
         if not records:
             return "未找到历史会谈信息"
         
-        chat_history = []
+        def parse_time(time_str):
+            """解析时间字符串"""
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"]:
+                try:
+                    return datetime.strptime(time_str, fmt)
+                except ValueError:
+                    continue
+            return None
+        
+        records_with_time = []
         for record in records:
-            content = record.get("content", "")
-            talk_time = record.get("created_time", "")
-            chat_history.append(f"时间: {talk_time}\n内容: {content}")
+            time_str = record.get("created_time", "")
+            dt = parse_time(time_str)
+            if dt:
+                records_with_time.append({
+                    "time": dt,
+                    "time_str": time_str,
+                    "content": record.get("content", "")
+                })
+        
+        if not records_with_time:
+            chat_history = []
+            for record in records:
+                content = record.get("content", "")
+                talk_time = record.get("created_time", "")
+                chat_history.append(f"时间: {talk_time}\n内容: {content}")
+            return "\n\n".join(chat_history)
+        
+        records_with_time.sort(key=lambda x: x["time"])
+        
+        chat_history = []
+        prev_time = None
+        
+        for i, record in enumerate(records_with_time, 1):
+            current_time = record["time"]
+            time_str = record["time_str"]
+            content = record["content"]
+            
+            time_info = f"[{i}] 时间: {time_str}"
+            
+            if prev_time:
+                time_diff = current_time - prev_time
+                hours = time_diff.total_seconds() / 3600
+                days = hours / 24
+                
+                if days >= 1:
+                    time_info += f" (距离上次间隔: {days:.1f}天)"
+                elif hours >= 1:
+                    time_info += f" (距离上次间隔: {hours:.1f}小时)"
+                else:
+                    minutes = time_diff.total_seconds() / 60
+                    time_info += f" (距离上次间隔: {minutes:.0f}分钟)"
+            
+            chat_history.append(f"{time_info}\n内容: {content}")
+            prev_time = current_time
         
         return "\n\n".join(chat_history)
         
