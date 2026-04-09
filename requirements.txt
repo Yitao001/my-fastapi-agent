@@ -12,6 +12,7 @@ mysql-connector-python
 langchain
 langchain-core
 langchain-community
+langchain-openai
 
 # 安全依赖
 slowapi
