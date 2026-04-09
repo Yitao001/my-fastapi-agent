@@ -20,6 +20,64 @@ load_dotenv()
 PROXY_API_URL = os.getenv("PROXY_API_URL", "")
 PROXY_API_KEY = os.getenv("PROXY_API_KEY", "")
 
+RELAY_MODE = os.getenv("RELAY_MODE", "false").lower() == "true"
+RELAY_API_URL = os.getenv("RELAY_API_URL", "http://localhost:8002")
+RELAY_API_KEY = os.getenv("RELAY_API_KEY", "relay_secret_key_123")
+RELAY_CLIENT_ID = os.getenv("RELAY_CLIENT_ID", "client_001")
+
+
+def get_chat_history_from_relay(participant_id: str) -> dict:
+    """
+    通过中继服务获取对话历史
+    
+    Args:
+        participant_id: 参与者ID（学生ID）
+    
+    Returns:
+        包含 records 的字典
+    """
+    try:
+        if not RELAY_API_URL:
+            return {"status": "error", "error": "未配置中继服务地址 (RELAY_API_URL)"}
+        
+        headers = {
+            "X-API-Key": RELAY_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "client_id": RELAY_CLIENT_ID,
+            "action": "chat_history",
+            "params": {
+                "student_id": participant_id,
+                "limit": 100
+            }
+        }
+        
+        logger.info(f"[中继调用] 请求对话历史，学生ID: {participant_id}, 客户端: {RELAY_CLIENT_ID}")
+        
+        response = requests.post(
+            f"{RELAY_API_URL.rstrip('/')}/query",
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        if result.get("status") != "success":
+            return {"status": "error", "error": result.get("error", "未知错误")}
+        
+        return {"status": "success", "records": result.get("data", [])}
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[中继调用] 中继服务调用失败: {str(e)}")
+        return {"status": "error", "error": f"中继服务调用失败: {str(e)}"}
+    except Exception as e:
+        logger.error(f"[中继调用] 获取对话历史失败: {str(e)}")
+        return {"status": "error", "error": f"获取对话历史失败: {str(e)}"}
+
 
 def get_chat_history_from_db(participant_id: str) -> str:
     """
@@ -32,26 +90,33 @@ def get_chat_history_from_db(participant_id: str) -> str:
         对话历史文本
     """
     try:
-        if not PROXY_API_URL:
-            return "错误：未配置数据库代理服务地址 (PROXY_API_URL)"
-        
-        headers = {}
-        if PROXY_API_KEY:
-            headers["X-Proxy-API-Key"] = PROXY_API_KEY
-        
-        payload = {
-            "student_id": participant_id,
-            "limit": 100
-        }
-        
-        logger.info(f"[代理调用] 请求对话历史，学生ID: {participant_id}")
-        
-        response = requests.post(
-            f"{PROXY_API_URL.rstrip('/')}/chat-history",
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
+        if RELAY_MODE:
+            logger.info(f"[代理调用] 使用中继模式")
+            result = get_chat_history_from_relay(participant_id)
+            if result.get("status") != "success":
+                return f"中继服务错误: {result.get('error', '未知错误')}"
+            records = result.get("records", [])
+        else:
+            if not PROXY_API_URL:
+                return "错误：未配置数据库代理服务地址 (PROXY_API_URL)"
+            
+            headers = {}
+            if PROXY_API_KEY:
+                headers["X-Proxy-API-Key"] = PROXY_API_KEY
+            
+            payload = {
+                "student_id": participant_id,
+                "limit": 100
+            }
+            
+            logger.info(f"[代理调用] 请求对话历史，学生ID: {participant_id}")
+            
+            response = requests.post(
+                f"{PROXY_API_URL.rstrip('/')}/chat-history",
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
         
         response.raise_for_status()
         result = response.json()
