@@ -6,6 +6,7 @@
 import asyncio
 import json
 import uuid
+import logging
 from typing import Dict, Optional
 from datetime import datetime
 
@@ -16,7 +17,11 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 
-from utils.logger_handler import logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
